@@ -1,0 +1,85 @@
+<script type="text/javascript" src="http://www.google.com/jsapi"></script> 
+<script type="text/javascript"> 
+	google.load("visualization", "1", {packages:["corechart"]}); 
+	
+</script>
+<input type="file" id="input" onchange="handleFiles(this.files)"/>
+<select id="product-names" onchange="showGraph(this)">
+</select>
+<div id="graph" style="width: 900px; height: 500px;"></div>
+<div id="chart_div" ></div> 
+<script>
+	
+	var inputElement = document.getElementById('input');
+	var showReviewGraph = document.getElementById('graph');
+	var productList = document.getElementById('product-names');
+ //	inputElement.addEventListener('change', handleFiles, false);
+	objectDetailsArray = new Object();
+	productIdMap = new Object();
+	var reader = new FileReader();
+	
+	
+	reader.onload = traceOutputFile;
+	
+	
+	function handleFiles(fileList) {
+		console.log(fileList);	
+		reader.readAsText(fileList[0]);
+	}
+	
+	function parseJson(json) {				// FOR PARSING THE FEATURE LIST PRESENT IN THE JSON FORM
+		try {
+			eval("var jsonData = "+json);	
+		} catch(SyntaxError) {				// IN CASE OF NO FEATURES A SYNTAX ERROR IS GENERATED.	
+			jsonData = "No listed features identified.";
+		}
+		return jsonData;
+	}
+	
+	function traceOutputFile(e) {
+		var text = reader.result;
+		textArray = text.split("\n");
+		for(i=0;i<textArray.length;i++) {
+			if(textArray[i].length == 1) {
+				continue;
+			}
+			objects = [textArray[i].slice(0, textArray[i].indexOf(':')), textArray[i].slice(textArray[i].indexOf(':')+1)];
+			if(objects[0] === "Filename") {
+				filename = objects[1];
+				objectDetailsArray[objects[1]] = new Object();
+			} else {
+				if(objects[0] ==="Feature List") { 
+					objectDetailsArray[filename][objects[0].toLowerCase().replace(" ", "_")] = parseJson(objects[1]);
+				} else {
+					if(objects[0] == "Product")
+						productIdMap[objects[1].trim()] = filename;
+					else
+						objectDetailsArray[filename][objects[0].toLowerCase().replace(" ", "_")] = objects[1].trim();
+				}
+			}
+		}
+		text = "<option>Select a Product</option>"
+		for(var product in productIdMap) {
+			text += "<option>" + product + "</option>";
+		}			
+		productList.innerHTML = text;
+	}
+	
+	function showGraph(e) {
+		productId = productIdMap[e.value];
+		productDetails = objectDetailsArray[productId];
+		feature_list = productDetails.feature_list;
+		var graphArray = new Array();
+		graphArray.push(["Feature", "Positive Reviews", "Neutral Reviews", "Negetive Reviews"])
+		for(var feature in feature_list) {
+			reviews = feature_list[feature];
+			graphArray.push([feature, reviews.pos_tweet, reviews.neutral_tweet, reviews.neg_tweet]);
+		}
+		console.log(graphArray);
+		var data = google.visualization.arrayToDataTable(graphArray); 
+		var options = { title: e.value, vAxis: {title: 'Feature List', titleTextStyle: {color: 'green'}}, hAxis: {title: 'No of reviews', titleTextStyle:{color: 'blue'}} }; 
+		var chart = new google.visualization.BarChart(showReviewGraph); 
+		chart.draw(data, options);
+		
+	}
+</script>
